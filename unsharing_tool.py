@@ -1,3 +1,4 @@
+'''This module is designed to automatically remove access rights to Google drive files'''
 import logging
 from os import environ
 from googleapiclient.discovery import build
@@ -23,7 +24,7 @@ def get_logger():
 LOGGER = get_logger()
 
 def init_api():
-    '''INIT API ...'''
+    '''Initial Google Drive API function'''
     store = file.Storage('token.json')
     creds = store.get()
     if not creds or creds.invalid:
@@ -32,35 +33,38 @@ def init_api():
     return creds
 
 def get_files(service):
+    '''Function for obtaining list of files in google drive'''
     return service.files().list(fields='files(id, name, permissions(id, emailAddress))').execute()
 
 def remove_permission(service, file_id, file_name, permission_id):
+    '''Function for removing permission rule from file '''
     service.permissions().delete(fileId=file_id,
-                                    permissionId=permission_id).execute()
-    LOGGER.info("%s. Permission for %s removed" % (file_name, EMAIL))
+                                 permissionId=permission_id).execute()
+    LOGGER.info("%s. Permission for %s removed", file_name, EMAIL)
 
 def main():
+    '''Main function'''
     creds = init_api()
-    
+
     service = build('drive', 'v3', http=creds.authorize(Http()))
 
     files = get_files(service)
     count = 0
 
-    for file in files['files']:
-        if 'permissions' in file:
-            for permission in file['permissions']:
+    for item in files['files']:
+        if 'permissions' in item:
+            for permission in item['permissions']:
                 if 'emailAddress' in permission:
                     if permission['emailAddress'].lower() == EMAIL.lower():
                         remove_permission(service,
-                                          file['id'],
-                                          file['name'],
+                                          item['id'],
+                                          item['name'],
                                           permission['id'])
                         count += 1
         #else:
-            #LOGGER.info("%s. Requested user can't share this file" %
-            #            file['name'])
-    LOGGER.info('Permissions removed for %d files.' % count)
+            #LOGGER.info("%s. Requested user can't share this item" %
+            #            item['name'])
+    LOGGER.info('Permissions removed for %d files.', count)
 
 if __name__ == '__main__':
     main()
